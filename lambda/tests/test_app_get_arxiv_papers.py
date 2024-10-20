@@ -1,6 +1,6 @@
 import datetime
 
-from src.app import get_arxiv_papers
+from src.app import get_arxiv_papers, is_relevant_to_interest
 
 
 def test_get_arxiv_papers_constructs_correct_date_range(mocker):
@@ -12,12 +12,12 @@ def test_get_arxiv_papers_constructs_correct_date_range(mocker):
     })
 
     # Mock the arxiv.Client
-    mock_client = mocker.patch('arxiv.Client')  # 'your_module.arxiv.Client' -> 'arxiv.Client' に修正
+    mock_client = mocker.patch('arxiv.Client')
     mock_client_instance = mock_client.return_value
     mock_client_instance.results.return_value = []
 
     # Mock the arxiv.Search
-    mock_search = mocker.patch('src.app.arxiv.Search')
+    mock_search = mocker.patch('arxiv.Search')
 
     # Call the function
     get_arxiv_papers()
