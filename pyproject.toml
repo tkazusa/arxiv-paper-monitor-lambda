@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "arxiv-paper-monitor-lambda"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+aws-cdk-lib = "^2.162.1"
+constructs = "^10.4.2"
+boto3 = "^1.35.43"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
