@@ -3,8 +3,23 @@ import datetime
 from typing import Generator
 import re
 
+from slack_sdk import WebClient
 import arxiv
 from openai import OpenAI, APIError, APIConnectionError, RateLimitError
+
+
+
+SLACK_TOKEN = 'your-slack-token'
+CHANNEL ='your-slack-channel'
+
+def post_to_slack(matched_papers, slack_token, channel):
+    slack_client = WebClient(token=slack_token)
+    for paper in matched_papers:
+        message = f"*{paper['title']}*\n{paper['summary']}\n<{paper['url']}|Read more>"
+        response = slack_client.chat_postMessage(channel=channel, text=message)
+        if not response["ok"]:
+            print(f"Failed to post to Slack: {response['error']}")
+
 
 def get_arxiv_papers() -> Generator[arxiv.Result, None, None]:
   """ Get the 500 most recent papers from arXiv.
@@ -25,7 +40,6 @@ def get_arxiv_papers() -> Generator[arxiv.Result, None, None]:
   )
 
   return client.results(search)
-
 
 
 def is_relevant_to_interest(summary: str, user_interests: str) -> bool:
@@ -86,3 +100,21 @@ def is_relevant_to_interest(summary: str, user_interests: str) -> bool:
         #Handle rate limit error (we recommend using exponential backoff)
         print(f"OpenAI API request exceeded rate limit: {e}")
         return False
+    
+
+def match_papers_with_interests(papers, user_interests):
+    matched_papers = []
+    for paper in papers:
+        for interest in user_interests:
+            if is_relevant_to_interest(paper['summary'], interest):
+                matched_papers.append(paper)
+                break
+    return matched_papers
+
+
+
+
+
+
+
+
