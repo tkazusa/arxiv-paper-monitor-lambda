@@ -12,34 +12,37 @@ from openai import OpenAI, APIError, APIConnectionError, RateLimitError
 SLACK_TOKEN = 'your-slack-token'
 CHANNEL ='your-slack-channel'
 
+
+
 def post_to_slack(matched_papers, slack_token, channel):
     slack_client = WebClient(token=slack_token)
     for paper in matched_papers:
-        message = f"*{paper['title']}*\n{paper['summary']}\n<{paper['url']}|Read more>"
+        message = f"*{paper.title}*\n{paper.summary}\n<{paper.entry_id}|Read more>"
         response = slack_client.chat_postMessage(channel=channel, text=message)
         if not response["ok"]:
             print(f"Failed to post to Slack: {response['error']}")
 
 
 def get_arxiv_papers() -> Generator[arxiv.Result, None, None]:
-  """ Get the 500 most recent papers from arXiv.
-  """
-  # Get the date range for the query.
-  now = datetime.datetime.now()
-  yesterday = now - datetime.timedelta(days=1)
-  date_range = f'[{yesterday.strftime("%Y%m%d")} TO {now.strftime("%Y%m%d")}]'
-  
-  # Construct the default API client.
-  client = arxiv.Client()
+    """ Get the 500 most recent papers from arXiv.
+    """
+    # Get the date range for the query.
+    now = datetime.datetime.now()
+    yesterday = now - datetime.timedelta(days=2)
+    date_range = f'[{yesterday.strftime("%Y%m%d")} TO {now.strftime("%Y%m%d")}]'
+    query = f'submittedDate:{date_range} AND cat:cs.CV'
+    print(query)
+    # Construct the default API client.
+    client = arxiv.Client()
 
-  # Search for the 10 most recent articles matching the keyword "quantum."
-  search = arxiv.Search(
-    query = date_range,
-    max_results = 500,
-    sort_by = arxiv.SortCriterion.SubmittedDate
-  )
+    # Search for the 10 most recent articles matching the keyword "quantum."
+    search = arxiv.Search(
+        query = query,
+        max_results = 10,
+        sort_by = arxiv.SortCriterion.SubmittedDate,
+    )
 
-  return client.results(search)
+    return client.results(search)
 
 
 def is_relevant_to_interest(summary: str, user_interests: str) -> bool:
@@ -69,7 +72,7 @@ def is_relevant_to_interest(summary: str, user_interests: str) -> bool:
             f"\"{user_interests}\"\n\n"
             "Does this paper align with the user's interests? Please answer with 'yes' or 'no'."
         )
-        
+
         # ChatGPT API call
         response = client.completions.create(
             model="gpt-3.5-turbo-instruct",
@@ -82,6 +85,7 @@ def is_relevant_to_interest(summary: str, user_interests: str) -> bool:
         # Extracting the response and cleaning it up
         answer = response.choices[0].text.strip().lower()
         clean_answer = re.sub(r'[^a-z]', '', answer)
+        print(clean_answer)
         
         # Return True for "yes" and False for "no"
         return clean_answer == "yes"
@@ -105,16 +109,34 @@ def is_relevant_to_interest(summary: str, user_interests: str) -> bool:
 def match_papers_with_interests(papers, user_interests):
     matched_papers = []
     for paper in papers:
+        print(paper.title)  
         for interest in user_interests:
-            if is_relevant_to_interest(paper['summary'], interest):
+            if is_relevant_to_interest(paper.summary, interest):
                 matched_papers.append(paper)
                 break
     return matched_papers
 
 
 
+def lambda_handler():
+    
+    user_interests = [
+        "I am interested in earth ovservation foundation models and climate models using remote sensing data.",
+        "I want to explore advanceme in semantic segmentation, especially on top of the Segment Anything models."
+        "I learn about new approach to spatial-temporal prediction models using bayesian neural fields."
+    ]
+    
+    papers = get_arxiv_papers()
+    if papers:
+        matched_papers = match_papers_with_interests(papers, user_interests)
+        if matched_papers:
+            post_to_slack(matched_papers, SLACK_TOKEN, CHANNEL)
+    return {
+        'statusCode': 200,
+        'body': 'Success'
+    }
 
 
 
-
-
+if __name__ == "__main__":
+    lambda_handler() 
